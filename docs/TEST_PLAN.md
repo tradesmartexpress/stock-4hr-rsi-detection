@@ -1,37 +1,27 @@
 # Test Plan
 
-## v1 Success Scenario (manual steps)
+## v1 Success Scenario (manual)
+1. Open `/stocks` — confirm 5 seeded stocks visible, MSFT/AAPL/V show all-green badges, NKE/SBUX show red failures
+2. Click MSFT → detail page shows 8 criteria with pass/fail icons and numeric values
+3. Click "Add Stock" → enter ticker=GOOGL, fill all fundamental fields meeting all thresholds → save → GOOGL appears with `overall_pass = true`
+4. `POST /api/rsi-ingest` with `{ "ticker": "MSFT", "rsi": 18.5, "timestamp": "<now>" }` and header `x-api-key: <INGEST_API_KEY>` → 200 OK
+5. Open `/alerts` → new alert event for MSFT visible with RSI 18.5, status 'sent' (or 'pending' before delivery)
+6. Check email inbox → alert email received for MSFT
+7. Check WhatsApp → message received for MSFT
+8. `POST /api/rsi-ingest` for NKE with rsi=15 → 200 OK but NO alert_event created (fundamental_pass = false)
 
-### Happy path — alert fires
-1. Open `/stocks` — confirm 5 demo stocks visible, MSFT shows green "Pass" badge
-2. Click MSFT → detail page shows all 9 criteria with green/red icons
-3. On detail page, enter RSI value `18.4` → click "Submit RSI"
-4. Toast appears: "Alert fired for MSFT — RSI 18.4 on 4h chart"
-5. Navigate to `/alerts` — new row shows MSFT, 18.4, timestamp, "Fundamentals: Pass"
-6. Return to MSFT detail — "Latest RSI: 18.4 | Status: Alert Fired" displayed
+## Empty / Error Cases
+| Scenario | Expected |
+|----------|----------|
+| `/stocks` with no stocks in DB | Empty state: "Add your first stock" prompt with Add button |
+| Add stock form submitted with missing required field | Inline validation error, no DB write |
+| POST to `/api/rsi-ingest` with wrong API key | 401 Unauthorized, no row written |
+| POST with unknown ticker | 404, message "Ticker not found in watchlist" |
+| SendGrid delivery fails | alert_delivery row with status='failed' + error_message; alert_event still visible on /alerts |
+| RSI reading for stock with `fundamental_pass=false` | Reading stored in rsi_readings, no alert_event created |
+| RSI=18 posted but previous reading was already 17 (no cross, already below) | No new alert_event (cross already happened) |
 
-### No alert — stock fails fundamental screen
-1. Click XOM (fails screen — EPS CAGR < 10%, ROIC < 10%)
-2. Enter RSI value `15.0` → submit
-3. No alert row in `/alerts` for this submission
-4. Informational message shown: "XOM does not meet fundamental criteria — no alert sent"
-
-### No alert — RSI above threshold
-1. Click MSFT (passes screen)
-2. Enter RSI value `35.0` → submit
-3. RSI reading saved but no alert_event created
-4. Message shown: "RSI 35.0 is above the 20 threshold — no alert"
-
-## Empty State Tests
-- Delete all stocks → `/stocks` shows empty state illustration and "Add your first stock" CTA
-- `/alerts` with no events → "No alerts triggered yet" message
-
-## Error Cases
-- Submit RSI with non-numeric value → inline validation error, no DB write
-- Supabase offline → error boundary shows "Unable to load data. Please try again."
-- Duplicate ticker add → show error "MSFT is already in your watchlist"
-
-## CRUD Verification
-- Add stock → appears immediately in list
-- Edit fundamental snapshot → updated values reflect on detail page
-- Delete stock → removed from list, associated alerts remain in log with "[Deleted]" label
+## Permissions (post lock-down sprint)
+- User A cannot see User B's stocks or alerts (RLS blocks)
+- Unauthenticated GET /stocks → redirect to /login
+- Ingest endpoint requires API key regardless of auth state

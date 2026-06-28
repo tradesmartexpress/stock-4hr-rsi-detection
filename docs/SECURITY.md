@@ -1,21 +1,20 @@
 # Security
 
 ## Secret Handling
-- Supabase service role key, SendGrid API key, Twilio credentials → `.env.local` only
-- Never imported into any client component or exposed in API responses
-- Vercel environment variables used in production (server-side only)
+- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `SUPABASE_SERVICE_ROLE_KEY` — stored as Vercel environment variables only
+- Never imported in any file under `app/` (client bundle); only used in `app/api/` server routes
+- RSI ingest endpoint protected by a shared `INGEST_API_KEY` header checked server-side
 
-## Permission Model
-- **v1 (demo)**: permissive RLS — all tables readable and writable by anyone
-- **Lock-down sprint**: replace with `auth.uid() = user_id` policies; anon users get read-only on seed data only
-- Agent actions inherit the calling user's Supabase session — no elevated service-role calls from the frontend
+## Permission Model (v1 → lock-down)
+- **v1:** Supabase RLS permissive — all tables readable and writable anonymously (demo mode)
+- **Lock-down sprint:** Replace with `auth.uid() = user_id` owner-scoped policies; API routes verify `supabase.auth.getUser()` before mutating data
 
 ## Approved Tools Rule
-- Only the five named tools in AGENTIC_LAYER.md may perform external I/O
-- No `eval`, no `run_any`, no dynamic `fetch` to arbitrary URLs from agent code
-- Every tool call is logged with input params, output, and timestamp
+- Agents may only call the five named tools in AGENTIC_LAYER.md
+- No `run_any`, `exec`, or raw SQL execution from frontend
+- Every tool invocation writes to `alert_deliveries` or returns a structured result — no silent side effects
 
 ## Audit Principle
-- Every alert creation and every notification dispatch writes a status field back to `alert_events`
-- Failed deliveries are flagged (email_status = 'failed') and visible in the alert log
-- No meaningful action is silent — if it touches external systems, it leaves a DB record
+- Every notification sent → row in `alert_deliveries` with channel, recipient, status, timestamp, provider ID
+- Every fundamental score computed → `overall_pass` + per-criterion fields stored on `fundamental_snapshots`
+- Failed deliveries retain `error_message` for diagnosis

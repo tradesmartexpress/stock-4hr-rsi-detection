@@ -1,32 +1,32 @@
 # Architecture
 
 ## Stack
-- **Frontend**: Next.js 14 (App Router) on Vercel
-- **Database**: Supabase (Postgres + RLS)
-- **Notifications** (Sprint 3): SendGrid (email), Twilio (WhatsApp)
-- **Scheduled jobs** (Sprint 4): Supabase Edge Functions (cron)
+- **Frontend:** Next.js 14 (App Router) on Vercel
+- **Database:** Supabase (Postgres + RLS)
+- **Notifications:** SendGrid (email), Twilio/Vonage (WhatsApp)
+- **RSI Ingest:** POST `/api/rsi-ingest` — called by an external scheduler (TradingView webhook or cron)
 
 ## Now vs Later
 | Now | Later |
-|---|---|
-| Manual RSI entry | Auto OHLCV fetch + RSI compute |
-| Rule engine in Next.js server action | Edge Function cron every 4 hrs |
-| Alert log in DB | Email + WhatsApp push delivery |
-| Seed demo data, no auth | Auth + per-user RLS isolation |
+|-----|-------|
+| Manual fundamental entry | Pull from Financial Modeling Prep API |
+| Rule-based fundamental scoring | AI moat rating suggestion |
+| POST endpoint for RSI | Streaming WebSocket feed |
+| Email + WhatsApp alerts | Slack / Telegram |
 
-## Key Action Flow — "User logs RSI, alert fires"
-1. User submits RSI value on stock detail page
-2. Server action writes `rsi_readings` row
-3. Server action reads latest `fundamental_snapshot` for that stock
-4. If `passes_screen = true` AND `rsi_value < 20` → insert `alert_events` row
-5. UI refreshes; alert appears in `/alerts` log
-6. (Sprint 3) Supabase webhook triggers Edge Function → SendGrid + Twilio
+## Key Action Flow — RSI Alert Fires
+1. External source POSTs `{ ticker, rsi, timestamp }` to `/api/rsi-ingest`
+2. Server looks up stock by ticker, verifies `fundamental_pass = true`
+3. Fetches previous RSI reading; detects cross-below-threshold
+4. Inserts `alert_event` row (status: pending)
+5. Calls SendGrid + Twilio; inserts `alert_delivery` rows with result
+6. Updates `alert_event.delivery_status`
+7. `/alerts` page reflects new event in real time (Supabase Realtime or polling)
 
 ## Layer Plan
-1. **Data layer** — tables, seed data, RLS (Sprint 1)
-2. **App logic** — CRUD, rule engine, alert creation (Sprint 2)
-3. **Delivery** — notification integrations (Sprint 3)
-4. **Smart layer** — auto RSI polling, fundamental data fetch (Sprint 4)
+1. **Data first** — tables, RLS, seed data
+2. **App logic** — scoring engine, ingest endpoint, CRUD screens
+3. **Smart features** — AI moat suggestion, delivery retry, backtest
 
 ## Core Without AI
-The fundamental pass/fail rules and RSI threshold are hard-coded numeric comparisons. The app works entirely without any AI or external API.
+Fundamental scoring is pure rule-based comparisons. RSI detection is a numeric threshold check. The app is fully functional with AI switched off.

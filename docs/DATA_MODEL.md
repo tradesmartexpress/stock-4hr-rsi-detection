@@ -2,67 +2,75 @@
 
 ## stocks
 | Field | Type | Notes |
-|---|---|---|
-| id | uuid PK | gen_random_uuid() |
-| user_id | uuid | nullable until auth sprint |
-| ticker | text | e.g. "MSFT" |
+|-------|------|-------|
+| id | uuid PK | |
+| user_id | uuid nullable | owner, added at lock-down |
+| ticker | text | e.g. MSFT |
 | company_name | text | |
 | sector | text | |
-| moat_rating | text | none / narrow / wide |
-| is_active | boolean | soft delete |
+| moat_rating | text | 'none' / 'narrow' / 'wide' |
+| moat_ai_value | text | AI suggestion |
+| moat_ai_source | text | model/prompt version |
+| moat_ai_confidence | numeric | 0–1 |
+| moat_ai_review_status | text | 'unreviewed' / 'approved' / 'overridden' |
+| rsi_alert_threshold | numeric | default 20 |
+| fundamental_pass | boolean | computed by scoring engine |
+| notes | text | |
 | created_at | timestamptz | |
 
 ## fundamental_snapshots
 | Field | Type | Notes |
-|---|---|---|
+|-------|------|-------|
 | id | uuid PK | |
 | stock_id | uuid FK → stocks | |
-| as_of_date | date | fiscal year end |
-| revenue_cagr_5y | numeric | % — rule: > 8 |
-| revenue_growth_continuous | boolean | rule: true |
-| eps_cagr_5y | numeric | % — rule: > 10 |
-| fcf_positive_5y | boolean | rule: true |
-| net_profit_margin_avg | numeric | % — rule: > 5 |
-| roe_avg | numeric | % — rule: > 15 |
-| roic_avg | numeric | % — rule: > 10 |
-| debt_to_equity | numeric | rule: < 0.5 |
-| **passes_screen** | boolean | AI/rule field |
-| passes_screen_source | text | "rule_engine" \| "manual" |
-| passes_screen_confidence | numeric | 0–1 |
-| passes_screen_review_status | text | unreviewed / confirmed / rejected |
-| data_source | text | |
+| snapshot_date | date | |
+| revenue_cagr_5yr | numeric | % |
+| revenue_growth_continuous | boolean | |
+| eps_cagr_5yr | numeric | % |
+| fcf_positive_5yr | boolean | |
+| net_profit_margin_avg | numeric | % |
+| roe_avg | numeric | % |
+| roic_avg | numeric | % |
+| debt_to_equity | numeric | |
+| revenue_cagr_pass / eps_cagr_pass / fcf_pass / npm_pass / roe_pass / roic_pass / de_pass / moat_pass | boolean | per-criterion |
+| overall_pass | boolean | all 8 must be true |
+| data_source | text | 'manual' / 'api' |
 
 ## rsi_readings
 | Field | Type | Notes |
-|---|---|---|
+|-------|------|-------|
 | id | uuid PK | |
 | stock_id | uuid FK → stocks | |
-| timeframe | text | default "4h" |
-| rsi_value | numeric | 0–100 |
-| reading_at | timestamptz | |
-| source | text | manual \| auto |
+| reading_time | timestamptz | bar close time |
+| rsi_value | numeric | |
+| timeframe | text | '4h' |
+| source | text | 'tradingview' / 'manual' |
 
 ## alert_events
 | Field | Type | Notes |
-|---|---|---|
+|-------|------|-------|
 | id | uuid PK | |
 | stock_id | uuid FK → stocks | |
-| rsi_reading_id | uuid FK → rsi_readings | nullable |
-| trigger_type | text | "rsi_cross_below_20" |
-| rsi_value | numeric | snapshot at trigger |
-| fundamental_passed | boolean | snapshot at trigger |
-| email_status | text | pending / sent / failed |
-| whatsapp_status | text | pending / sent / failed |
-| delivered_at | timestamptz | |
+| rsi_reading_id | uuid FK → rsi_readings | |
+| triggered_at | timestamptz | |
+| rsi_value_at_trigger | numeric | |
+| rsi_threshold | numeric | |
+| alert_type | text | 'rsi_cross_below' |
+| delivery_status | text | 'pending' / 'sent' / 'failed' |
 
-## notification_settings
+## alert_deliveries
 | Field | Type | Notes |
-|---|---|---|
+|-------|------|-------|
 | id | uuid PK | |
-| user_id | uuid | nullable until auth sprint |
-| email_enabled | boolean | |
-| email_address | text | |
-| whatsapp_enabled | boolean | |
-| whatsapp_number | text | E.164 format |
+| alert_event_id | uuid FK → alert_events | |
+| channel | text | 'email' / 'whatsapp' |
+| recipient | text | address or phone |
+| status | text | 'pending' / 'sent' / 'failed' |
+| sent_at | timestamptz | |
+| error_message | text | |
+| provider_message_id | text | |
 
-**RLS**: v1 permissive (read + write for all). Auth sprint replaces with `auth.uid() = user_id`.
+## RLS
+- All tables have RLS enabled
+- v1: permissive read + write (demo-first)
+- Lock-down sprint: replace with `auth.uid() = user_id` owner policies

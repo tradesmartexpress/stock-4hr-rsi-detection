@@ -1,32 +1,32 @@
-# PRD — stock-4hr-rsi-detection
+# PRD — Stock 4H RSI Alert Tool
 
 ## Problem
-A stock picker needs to act quickly when an oversold signal appears on a fundamentally strong company. Manually watching dozens of 4-hour charts is impractical and error-prone.
+The builder manually monitors dozens of fundamentally strong stocks waiting for oversold technical entries. There is no automated way to be notified when a qualifying stock's 4-hour RSI drops below 20.
 
 ## Target User
-Solo retail investor / trader who already has a fundamental conviction list and wants a timely technical entry alert.
+Solo investor / builder — personal use only, not a SaaS product.
 
 ## Core Objects
-- **Stock** — ticker, name, sector, moat rating, active flag
-- **Fundamental Snapshot** — the 7 quantitative criteria + composite pass/fail
-- **RSI Reading** — 4-hour RSI value, timestamp, source (manual | auto)
-- **Alert Event** — triggered when stock passes fundamentals AND RSI < 20
-- **Notification Settings** — email address, WhatsApp number, toggles
+- **Stock** — ticker, fundamentals, moat rating, RSI threshold
+- **Fundamental Snapshot** — dated record of all 7 screener criteria per stock
+- **RSI Reading** — 4-hour RSI value + timestamp per stock
+- **Alert Event** — fired when RSI crosses below threshold on a fundamentally passing stock
+- **Alert Delivery** — per-channel delivery record (email / WhatsApp) with status
 
 ## MVP Must-Haves
-- [ ] Watchlist page listing stocks with per-criterion pass/fail badges
-- [ ] Stock detail page showing all fundamental fields
-- [ ] Manual RSI entry form for any stock
-- [ ] Rule engine: fundamental pass + RSI < 20 → create alert row
-- [ ] Alert log page with triggered events
-- [ ] Full CRUD on stocks and fundamental data (no dead buttons)
-- [ ] Demo data visible without login
+- [ ] Stock list with fundamental pass/fail badges
+- [ ] Fundamental scoring engine: revenue CAGR >8%, EPS CAGR >10%, FCF positive 5yr, NPM avg >5%, ROE avg >15%, ROIC avg >10%, D/E <0.5, at least narrow moat
+- [ ] RSI ingestion endpoint (4h, POST)
+- [ ] Cross-below-20 detection → creates Alert Event (only for fundamentally passing stocks)
+- [ ] Alerts page showing triggered events + delivery status
+- [ ] Email + WhatsApp delivery on alert
+- [ ] Viewable without login (demo seed data)
 
 ## Non-Goals (v1)
-- Automatic OHLCV fetch / RSI computation
-- WhatsApp / email delivery
-- Multi-user support
+- Multi-user / team access
+- Automated fundamental data pull from APIs
 - Backtesting
+- Charts or candlestick views
 
-## Success Criterion
-User opens the app, sees MSFT on the watchlist with a green "Pass" badge, enters RSI = 18 on the 4-hour form, and immediately sees a new row appear in the Alert Log — all without logging in.
+## Success Criteria
+User adds MSFT with passing fundamentals → RSI ingest endpoint receives a reading of 18 (crossed below 20) → Alert Event created → Email and WhatsApp message delivered within 60 seconds → Alert appears on /alerts with status "sent".
