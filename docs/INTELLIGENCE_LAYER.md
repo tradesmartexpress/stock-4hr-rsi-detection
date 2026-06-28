@@ -1,47 +1,46 @@
 # Intelligence Layer
 
 ## Messy Inputs
-- Builder enters raw financial figures (revenue for 5 years, EPS per year, FCF, margins, ratios)
-- Builder writes a free-text moat description ("strong brand, high switching costs")
+- User pastes a company description or Morningstar excerpt to rate moat
+- Fundamental numbers entered manually (may need normalisation)
 
-## Auto-Structuring
-On fundamental snapshot save, the scoring engine immediately evaluates:
+## Auto-Structure Schema (moat rating event)
 ```json
 {
-  "revenue_cagr_pass": true,       // cagr > 8%
-  "eps_cagr_pass": true,           // cagr > 10%
-  "fcf_pass": true,                // positive all 5 years
-  "npm_pass": true,                // avg > 5%
-  "roe_pass": true,                // avg > 15%
-  "roic_pass": true,               // avg > 10%
-  "de_pass": true,                 // D/E < 0.5
-  "moat_pass": true,               // rating = 'narrow' or 'wide'
-  "overall_pass": true             // all 8 true
+  "ticker": "ASML",
+  "input_text": "ASML is the sole supplier of EUV lithography machines...",
+  "moat_rating": "wide",
+  "moat_rating_source": "gpt-4o",
+  "moat_rating_confidence": 0.95,
+  "moat_rating_review_status": "unreviewed"
 }
 ```
 
 ## Events to Track
-- Fundamental snapshot saved → scoring engine runs
-- RSI reading ingested → cross-detection runs
-- Alert event created → notification sent
-- Moat AI suggestion generated → review_status = 'unreviewed'
+- `stock_added` — new ticker entered
+- `rsi_logged` — new RSI reading stored
+- `rsi_alert_triggered` — crossover detected
+- `moat_ai_rated` — LLM moat suggestion generated
+- `moat_reviewed` — human approved or overrode
 
-## Scoring Rules (rule-based, v1)
-| Criterion | Threshold | Field |
-|-----------|-----------|-------|
-| Revenue CAGR | > 8% | revenue_cagr_pass |
-| EPS CAGR | > 10% | eps_cagr_pass |
-| FCF positive | all 5 yr | fcf_pass |
-| Net Profit Margin avg | > 5% | npm_pass |
-| ROE avg | > 15% | roe_pass |
-| ROIC avg | > 10% | roic_pass |
-| Debt/Equity | < 0.5 | de_pass |
-| Moat | narrow or wide | moat_pass |
+## Scoring Rules (rule-based v1)
+| Criterion | Threshold | Points |
+|---|---|---|
+| Revenue CAGR | > 8% | 1 |
+| Revenue consecutive growth | 5 yrs | 1 |
+| EPS CAGR | > 10% | 1 |
+| FCF positive | 5 yrs | 1 |
+| Net margin avg | > 5% | 1 |
+| ROE avg | > 15% | 1 |
+| ROIC avg | > 10% | 1 |
+| D/E | < 0.5 | 1 |
+| Moat | wide=2, narrow=1 | 1–2 |
+
+Max = 10. Pass threshold = 8.
 
 ## What Gets Ranked
-- Stocks sorted by number of passing criteria (8/8 first)
-- Alert events sorted by recency
+- Watchlist stocks sorted by composite fundamental score (descending)
 
 ## v1 vs Later
-- **v1:** All scoring is rule-based; moat is manually set
-- **Later:** LLM reads company description → suggests moat rating → stored as `moat_ai_value` + `source` + `confidence` + `review_status`; human approves before `moat_rating` is updated
+- **v1:** Rule-based score, manual moat entry
+- **Later:** LLM moat rating with confidence; API-synced fundamentals auto-scored

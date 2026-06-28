@@ -1,6 +1,6 @@
 # stock-4hr-rsi-detection
 
-A stock screening and 4-hour RSI alert tool that filters stocks by strong fundamental criteria and fires WhatsApp/email notifications when RSI crosses below 20 on the 4-hour chart.
+A fundamental-screened stock watchlist tool that monitors 4-hour RSI and fires WhatsApp/email alerts when RSI crosses below 20 for qualifying stocks.
 
 ## ⚠️ READ THIS BEFORE WRITING ANY CODE
 A complete, correct plan for this app is already committed in `/docs`. Do **not** start

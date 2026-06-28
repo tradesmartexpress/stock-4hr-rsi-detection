@@ -1,20 +1,21 @@
 # Security
 
 ## Secret Handling
-- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `SUPABASE_SERVICE_ROLE_KEY` — stored as Vercel environment variables only
-- Never imported in any file under `app/` (client bundle); only used in `app/api/` server routes
-- RSI ingest endpoint protected by a shared `INGEST_API_KEY` header checked server-side
+- API keys (FMP, Twilio, Resend) stored as Vercel environment variables only
+- Never referenced in client components or exposed via API routes that return to the browser
+- Supabase service-role key used only in server-side cron routes
 
-## Permission Model (v1 → lock-down)
-- **v1:** Supabase RLS permissive — all tables readable and writable anonymously (demo mode)
-- **Lock-down sprint:** Replace with `auth.uid() = user_id` owner-scoped policies; API routes verify `supabase.auth.getUser()` before mutating data
+## Permission Model (phases)
+| Phase | Model |
+|---|---|
+| v1 demo | Permissive RLS — all reads/writes open (no login needed) |
+| Lock-down sprint | Supabase Auth; RLS `auth.uid() = user_id`; stocks/readings/alerts scoped to owner |
 
 ## Approved Tools Rule
-- Agents may only call the five named tools in AGENTIC_LAYER.md
-- No `run_any`, `exec`, or raw SQL execution from frontend
-- Every tool invocation writes to `alert_deliveries` or returns a structured result — no silent side effects
+Agent may only call the five named tools in AGENTIC_LAYER.md. No dynamic tool construction. No `eval`, no `run_any`, no `send_any`.
 
 ## Audit Principle
-- Every notification sent → row in `alert_deliveries` with channel, recipient, status, timestamp, provider ID
-- Every fundamental score computed → `overall_pass` + per-criterion fields stored on `fundamental_snapshots`
-- Failed deliveries retain `error_message` for diagnosis
+Every meaningful state change (alert fired, delivery attempted, moat rating generated, fundamental updated) writes an `audit_logs` row before the action completes. Failures are logged with `error_message`.
+
+## Agent Permission Inheritance
+The cron/agent context runs with the Supabase service role for data writes. Alert delivery tools are scoped to the single configured recipient — they cannot be redirected to arbitrary addresses.

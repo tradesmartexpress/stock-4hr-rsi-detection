@@ -1,94 +1,80 @@
 # Tasks & Sprints
 
-## Sprint 1 — Database, seed data & fundamental screener
-**Goal:** App renders with real data, no login required. Fundamental scoring works end-to-end.
+## Sprint 1 — DB + Stock Watchlist CRUD (demo-visible)
+**Goal:** Stocks table live; watchlist renders without login; add/edit/delete works.
 
-- [ ] Apply migration SQL to Supabase (all 5 tables + seed rows)
-- [ ] `/stocks` page: table of stocks with pass/fail badges per criterion
-- [ ] Stock detail page: all 8 fundamental fields shown with pass/fail icons
-- [ ] "Add Stock" form → saves to `stocks` + `fundamental_snapshots`, triggers scoring engine
-- [ ] `score_fundamentals(stock_id)` server action: evaluates all 8 rules, writes booleans
-- [ ] Edit / delete stock (with confirmation)
-- [ ] Empty state UI; loading skeleton; error toast
-- [ ] Demo seed data visible without login
+- [ ] Run migration SQL (all tables + seed data)
+- [ ] `/stocks` page: list all stocks, fundamental pass/fail badge, score
+- [ ] Add stock form: all 8 fundamental fields + moat + notes
+- [ ] Edit stock inline or on detail page
+- [ ] Delete stock with confirmation dialog
+- [ ] Empty state: "Add your first stock to the watchlist"
+- [ ] Loading + error states on all data fetches
 
-**Definition of Done:** Visit `/stocks` — see 5 seeded stocks with correct pass/fail. Add a new stock — it scores and appears in the list. Delete a stock — it's gone from DB.
-
----
-
-## Sprint 2 — RSI ingestion & alert detection (core engine) ✅ v1 functional milestone
-**Goal:** The full alert pipeline works: ingest → detect → event created → visible on /alerts.
-
-- [ ] `POST /api/rsi-ingest` endpoint: validates `INGEST_API_KEY` header, stores RSI reading
-- [ ] `detect_rsi_cross(stock_id, new_rsi)`: compare to previous reading, create `alert_event` if crossed below threshold AND `fundamental_pass = true`
-- [ ] `/alerts` page: list of alert events, stock name, RSI value, triggered time, delivery status
-- [ ] Alert detail modal: full fundamental summary + RSI value context
-- [ ] Seed RSI readings + alert events for MSFT and AAPL demo rows
-- [ ] Test: POST RSI 18 for MSFT → alert_event row created → appears on /alerts
-
-**Definition of Done:** End-to-end success scenario works. NKE (failing fundamentals) does NOT generate an alert even if RSI < 20.
+**DoD:** Add a new ticker, fill fundamentals, see pass badge. Edit it. Delete it. Seed stocks visible on cold load.
 
 ---
 
-## Sprint 3 — Notification delivery
-**Goal:** Email and WhatsApp sent within 60s of alert event creation.
+## Sprint 2 — RSI Engine + Alert Events (core engine) ✅ v1 functional milestone
+**Goal:** RSI crossover detection works end-to-end; alerts logged in DB.
 
-- [ ] `send_email_alert(alert_event_id)` — SendGrid integration, log to `alert_deliveries`
-- [ ] `send_whatsapp_alert(alert_event_id)` — Twilio integration, log to `alert_deliveries`
-- [ ] Delivery called automatically after `alert_event` insert (server-side)
-- [ ] `/alerts` shows per-channel delivery status badges
-- [ ] Retry once on failure; log `error_message`
-- [ ] All keys in env vars only; zero secrets in client bundle
+- [ ] `/stocks/[ticker]` detail page with RSI reading history chart
+- [ ] Manual RSI entry form: value + candle timestamp
+- [ ] Server action: on RSI insert, run crossover rule (prev ≥ 20, new < 20)
+- [ ] On crossover: insert `alert_events` row
+- [ ] `/alerts` page: list alert events, ticker, RSI, triggered_at, status
+- [ ] Acknowledge button → sets status + acknowledged_at, persists to DB
+- [ ] Audit log write on every alert event created
 
-**Definition of Done:** Trigger RSI cross via POST → email and WhatsApp received → alert_deliveries rows show status 'sent'.
-
----
-
-## Sprint 4 — Watchlist management & configurability
-**Goal:** Full CRUD; configurable thresholds; snapshot history.
-
-- [ ] RSI alert threshold editable per stock (default 20)
-- [ ] Fundamental snapshot history list on stock detail page
-- [ ] Re-score button: recomputes `overall_pass` from latest snapshot
-- [ ] Notification recipient settings page (email address, WhatsApp number)
-- [ ] All buttons persist to DB; no dead UI
-
-**Definition of Done:** Change MSFT threshold to 25 → next ingest at 24 fires alert. History shows two snapshots.
+**DoD:** Enter RSI 22 then 18.5 for a passing stock → Alert Event appears on /alerts → Acknowledge → status updates.
 
 ---
 
-## Sprint 5 — Lock it down (auth + RLS)
-**Goal:** Per-user data isolation. Safe for real use.
+## Sprint 3 — Auto-Fetch + Delivery
+**Goal:** Cron fetches RSI automatically; email + WhatsApp sent on trigger.
 
-- [ ] Supabase Auth: email/password login + signup page
-- [ ] `user_id` stamped on all inserts
-- [ ] Replace v1 RLS policies with `auth.uid() = user_id` owner-scoped policies
-- [ ] API routes verify authenticated user before mutating
-- [ ] Demo seed rows assigned to a demo user account
-- [ ] Redirect unauthenticated users to /login
+- [ ] Vercel cron route `/api/cron/fetch-rsi` (every 4 hrs): fetch candles, compute RSI-14, store readings
+- [ ] Vercel cron route `/api/cron/fetch-fundamentals`: FMP API → update stocks fundamentals
+- [ ] `send_email_alert` tool: Resend email on alert event
+- [ ] `send_whatsapp_alert` tool: Twilio WhatsApp on alert event
+- [ ] `alert_deliveries` row written per send attempt (sent/failed + error)
+- [ ] Delivery status visible on `/alerts` detail
+- [ ] All API keys in env vars only; no client exposure
 
-**Definition of Done:** Two users each see only their own stocks and alerts.
-
----
-
-## Sprint 6 — Intelligence & polish
-**Goal:** AI moat suggestion with human review; dashboard summary.
-
-- [ ] `suggest_moat(stock_id, description)` — LLM call, writes `moat_ai_*` fields
-- [ ] Moat review UI: approve or override AI suggestion
-- [ ] RSI sparkline (last 20 readings) on stock detail
-- [ ] Dashboard: passing stocks count, alerts fired this week, delivery success rate
-
-**Definition of Done:** AI suggests moat for a stock → user approves → `moat_rating` updated → stock rescores.
+**DoD:** Cron runs, RSI crosses 20, email arrives in inbox, WhatsApp received, delivery row shows `sent`.
 
 ---
 
-## Gantt
+## Sprint 4 — Lock It Down (auth + RLS)
+**Goal:** Per-user data isolation; no cross-user data leakage.
+
+- [ ] Supabase Auth: email/password sign-up and login pages
+- [ ] Attach `user_id` on all inserts post-login
+- [ ] Replace v1 permissive RLS with `auth.uid() = user_id` policies on all tables
+- [ ] Alert notification preferences page (email + WhatsApp number per user)
+- [ ] Redirect unauthenticated users to login (demo mode retired)
+
+**DoD:** Two test users each see only their own stocks and alerts.
+
+---
+
+## Sprint 5 — Intelligence Layer
+**Goal:** AI moat rating + ranked watchlist dashboard.
+
+- [ ] "Rate Moat with AI" button: calls `generate_moat_rating` tool, stores draft
+- [ ] Review UI: approve or override AI moat rating (updates review_status)
+- [ ] Ranked watchlist: sorted by composite fundamental score
+- [ ] Audit log viewer page
+
+**DoD:** AI suggests moat, human approves, score updates, watchlist reorders.
+
+---
+
+## Gantt (sprint → feature)
 ```
-Sprint 1  [DB + screener]          Week 1
-Sprint 2  [RSI engine] ← v1 done  Week 2
-Sprint 3  [Notifications]          Week 3
-Sprint 4  [CRUD + config]          Week 4
-Sprint 5  [Auth + RLS]             Week 5
-Sprint 6  [AI + polish]            Week 6
+Sprint 1  |████| DB + Stock CRUD
+Sprint 2  |████| RSI engine + Alert events   ← v1 functional
+Sprint 3  |████| Cron fetch + Email/WhatsApp
+Sprint 4  |████| Auth + RLS lock-down
+Sprint 5  |████| AI moat + ranked dashboard
 ```

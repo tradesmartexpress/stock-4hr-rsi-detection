@@ -3,30 +3,27 @@
 ## Stack
 - **Frontend:** Next.js 14 (App Router) on Vercel
 - **Database:** Supabase (Postgres + RLS)
-- **Notifications:** SendGrid (email), Twilio/Vonage (WhatsApp)
-- **RSI Ingest:** POST `/api/rsi-ingest` — called by an external scheduler (TradingView webhook or cron)
+- **Cron jobs:** Vercel Cron (every 4 hours)
+- **Email:** Resend
+- **WhatsApp:** Twilio
+- **Financial data (Sprint 3):** Financial Modeling Prep API
 
 ## Now vs Later
-| Now | Later |
-|-----|-------|
-| Manual fundamental entry | Pull from Financial Modeling Prep API |
-| Rule-based fundamental scoring | AI moat rating suggestion |
-| POST endpoint for RSI | Streaming WebSocket feed |
-| Email + WhatsApp alerts | Slack / Telegram |
+| Now (v1) | Later |
+|---|---|
+| Manual RSI entry | Auto-fetch 4-hr candles + compute RSI |
+| Manual fundamental entry | API-synced fundamentals |
+| Email alerts | WhatsApp delivery |
+| Rule-based pass/fail | AI moat scoring |
 
-## Key Action Flow — RSI Alert Fires
-1. External source POSTs `{ ticker, rsi, timestamp }` to `/api/rsi-ingest`
-2. Server looks up stock by ticker, verifies `fundamental_pass = true`
-3. Fetches previous RSI reading; detects cross-below-threshold
-4. Inserts `alert_event` row (status: pending)
-5. Calls SendGrid + Twilio; inserts `alert_delivery` rows with result
-6. Updates `alert_event.delivery_status`
-7. `/alerts` page reflects new event in real time (Supabase Realtime or polling)
+## Key Action Flow — RSI Alert Trigger
+1. **Capture:** Vercel cron fetches 4-hr OHLCV for each watched ticker
+2. **Compute:** RSI-14 calculated server-side (pure math, no AI needed)
+3. **Store:** `rsi_readings` row inserted with value, source, timestamp
+4. **Evaluate:** Rule engine checks: RSI < 20 AND previous reading ≥ 20 (crossover)
+5. **Trigger:** `alert_events` row created with ticker + RSI value
+6. **Deliver:** Resend email + Twilio WhatsApp sent; `alert_deliveries` row logged
+7. **Show:** Alert Events page reflects new row; user acknowledges
 
-## Layer Plan
-1. **Data first** — tables, RLS, seed data
-2. **App logic** — scoring engine, ingest endpoint, CRUD screens
-3. **Smart features** — AI moat suggestion, delivery retry, backtest
-
-## Core Without AI
-Fundamental scoring is pure rule-based comparisons. RSI detection is a numeric threshold check. The app is fully functional with AI switched off.
+## Why It Runs Without AI
+The fundamental pass/fail is a computed Postgres column using hard-coded numeric thresholds. RSI is a deterministic formula. AI only adds moat rating assistance — the core alert engine never calls an LLM.
