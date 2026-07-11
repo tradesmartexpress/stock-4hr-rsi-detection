@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { getStockByTicker } from "../queries";
 import { PassBadge } from "../PassBadge";
 import { DeleteStockButton } from "../DeleteStockButton";
+import { RsiForm } from "./RsiForm";
+import { createClient } from "@/lib/supabase/server";
+import type { RsiReading } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 const RULES: Array<{
   label: string;
@@ -71,6 +76,19 @@ export default async function StockDetailPage({
   if (!stock) {
     notFound();
   }
+
+  const supabase = await createClient();
+  const { data: readingsData, error: readingsError } = await supabase
+    .from("rsi_readings")
+    .select("*")
+    .eq("stock_id", stock.id)
+    .order("candle_timestamp", { ascending: false });
+
+  if (readingsError) {
+    throw new Error(readingsError.message);
+  }
+
+  const readings = (readingsData ?? []) as RsiReading[];
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -141,6 +159,48 @@ export default async function StockDetailPage({
           <p className="text-sm text-neutral-600">{stock.notes}</p>
         </div>
       )}
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">
+          RSI Readings (4h)
+        </h2>
+        <div className="mb-4 rounded border border-neutral-200 p-4">
+          <RsiForm stockId={stock.id} ticker={stock.ticker} />
+        </div>
+
+        {readings.length === 0 ? (
+          <p className="text-sm text-neutral-500">
+            No RSI readings logged yet.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded border border-neutral-200">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50 text-neutral-600">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium">Candle time</th>
+                  <th className="px-4 py-2.5 font-medium">RSI</th>
+                  <th className="px-4 py-2.5 font-medium">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readings.map((reading) => (
+                  <tr key={reading.id} className="border-t border-neutral-200">
+                    <td className="px-4 py-2.5">
+                      {new Date(reading.candle_timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 font-medium">
+                      {reading.rsi_value}
+                    </td>
+                    <td className="px-4 py-2.5 text-neutral-500">
+                      {reading.source}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
