@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         entity_id: stock.id,
         payload: { ticker: stock.ticker, update },
         actor: "system",
+        user_id: stock.user_id,
       });
 
       results.push({ ticker: stock.ticker, updated: update });

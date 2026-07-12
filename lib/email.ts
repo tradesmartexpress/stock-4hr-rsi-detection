@@ -16,9 +16,11 @@ export async function sendEmailAlert(params: {
   ticker: string;
   rsiValue: number;
   triggeredAt: string;
+  recipientOverride?: string;
 }): Promise<EmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const recipient = process.env.ALERT_RECIPIENT_EMAIL;
+  // Per-user preference wins over the global fallback recipient.
+  const recipient = params.recipientOverride || process.env.ALERT_RECIPIENT_EMAIL;
   const from = process.env.ALERT_FROM_EMAIL ?? "alerts@resend.dev";
 
   if (!recipient) {

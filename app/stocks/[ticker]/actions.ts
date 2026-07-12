@@ -31,6 +31,12 @@ export async function logRsiReading(
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be signed in to log a reading." };
+  }
 
   const { data: stock, error: stockError } = await supabase
     .from("stocks")
@@ -42,6 +48,13 @@ export async function logRsiReading(
     return { error: "Stock not found." };
   }
 
+  // Owner's per-user alert email (falls back to the env recipient).
+  const { data: pref } = await supabase
+    .from("notification_preferences")
+    .select("alert_email")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   try {
     const result = await processRsiReading(supabase, {
       stockId,
@@ -50,6 +63,8 @@ export async function logRsiReading(
       rsiValue,
       candleTimestamp: candleTimestamp.toISOString(),
       source: "manual",
+      ownerUserId: user.id,
+      recipientEmail: pref?.alert_email ?? null,
     });
 
     revalidatePath(`/stocks/${ticker}`);

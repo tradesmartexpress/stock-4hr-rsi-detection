@@ -31,6 +31,8 @@ export async function processRsiReading(
     rsiValue: number;
     candleTimestamp: string; // ISO
     source: string; // "manual" | "cron-fmp"
+    ownerUserId: string | null; // stamp on child rows for RLS ownership
+    recipientEmail?: string | null; // per-user override for delivery
     skipIfCandleExists?: boolean;
   },
 ): Promise<ProcessResult> {
@@ -41,6 +43,8 @@ export async function processRsiReading(
     rsiValue,
     candleTimestamp,
     source,
+    ownerUserId,
+    recipientEmail,
     skipIfCandleExists = false,
   } = opts;
 
@@ -78,6 +82,7 @@ export async function processRsiReading(
       rsi_value: rsiValue,
       candle_timestamp: candleTimestamp,
       source,
+      user_id: ownerUserId,
     })
     .select("id")
     .single();
@@ -92,6 +97,7 @@ export async function processRsiReading(
     entity_id: inserted.id,
     payload: { ticker, rsi_value: rsiValue, candle_timestamp: candleTimestamp },
     actor: source === "manual" ? "user" : "system",
+    user_id: ownerUserId,
   });
 
   const prev = prevReadings?.[0];
@@ -141,6 +147,7 @@ export async function processRsiReading(
       triggered_at: candleTimestamp,
       alert_type: "rsi_cross_below_20",
       status: "pending",
+      user_id: ownerUserId,
     })
     .select("id")
     .single();
@@ -155,6 +162,7 @@ export async function processRsiReading(
     entity_id: alertRow.id,
     payload: { ticker, rsi_value: rsiValue, triggered_at: candleTimestamp },
     actor: "system",
+    user_id: ownerUserId,
   });
 
   // High-risk action (external send) — always logged to alert_deliveries.
@@ -162,6 +170,7 @@ export async function processRsiReading(
     ticker,
     rsiValue,
     triggeredAt: candleTimestamp,
+    recipientOverride: recipientEmail ?? undefined,
   });
 
   await supabase.from("alert_deliveries").insert({
@@ -171,6 +180,7 @@ export async function processRsiReading(
     status: delivery.status,
     delivered_at: delivery.status === "sent" ? new Date().toISOString() : null,
     error_message: delivery.error,
+    user_id: ownerUserId,
   });
 
   return {

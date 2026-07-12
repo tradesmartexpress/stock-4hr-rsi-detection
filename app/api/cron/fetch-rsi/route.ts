@@ -55,6 +55,17 @@ export async function GET(request: NextRequest) {
       const latest = candles[candles.length - 1];
       const candleIso = toIso(latest.date);
 
+      // Resolve the stock owner's alert email (falls back to env recipient).
+      let recipientEmail: string | null = null;
+      if (stock.user_id) {
+        const { data: pref } = await supabase
+          .from("notification_preferences")
+          .select("alert_email")
+          .eq("user_id", stock.user_id)
+          .maybeSingle();
+        recipientEmail = pref?.alert_email ?? null;
+      }
+
       const result = await processRsiReading(supabase, {
         stockId: stock.id,
         ticker: stock.ticker,
@@ -62,6 +73,8 @@ export async function GET(request: NextRequest) {
         rsiValue: Math.round(rsi * 100) / 100,
         candleTimestamp: candleIso,
         source: "cron-fmp",
+        ownerUserId: stock.user_id,
+        recipientEmail,
         skipIfCandleExists: true,
       });
 
