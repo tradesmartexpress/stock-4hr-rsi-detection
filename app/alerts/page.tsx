@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { AlertEvent } from "@/lib/types";
+import type { AlertEvent, AlertDelivery } from "@/lib/types";
 import { AcknowledgeButton } from "./AcknowledgeButton";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,27 @@ function StatusBadge({ status }: { status: AlertEvent["status"] }) {
   );
 }
 
+function DeliveryCell({ delivery }: { delivery: AlertDelivery | undefined }) {
+  if (!delivery) {
+    return <span className="text-xs text-neutral-400">—</span>;
+  }
+  if (delivery.status === "sent") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+        ✉ Sent
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800"
+      title={delivery.error_message ?? undefined}
+    >
+      ✉ Failed
+    </span>
+  );
+}
+
 export default async function AlertsPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -32,6 +53,20 @@ export default async function AlertsPage() {
   }
 
   const alerts = (data ?? []) as AlertEvent[];
+
+  const { data: deliveryData } = await supabase
+    .from("alert_deliveries")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const deliveries = (deliveryData ?? []) as AlertDelivery[];
+  // Most-recent delivery per alert event.
+  const deliveryByAlert = new Map<string, AlertDelivery>();
+  for (const d of deliveries) {
+    if (!deliveryByAlert.has(d.alert_event_id)) {
+      deliveryByAlert.set(d.alert_event_id, d);
+    }
+  }
 
   return (
     <main className="mx-auto max-w-5xl p-8">
@@ -57,6 +92,7 @@ export default async function AlertsPage() {
                 <th className="px-4 py-2.5 font-medium">RSI</th>
                 <th className="px-4 py-2.5 font-medium">Triggered at</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 font-medium">Email</th>
                 <th className="px-4 py-2.5 font-medium"></th>
               </tr>
             </thead>
@@ -77,6 +113,9 @@ export default async function AlertsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={alert.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <DeliveryCell delivery={deliveryByAlert.get(alert.id)} />
                   </td>
                   <td className="px-4 py-3">
                     {alert.status === "pending" ? (

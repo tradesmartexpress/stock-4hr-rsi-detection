@@ -46,3 +46,14 @@ export interface AlertEvent {
   acknowledged_at: string | null;
   notes: string | null;
 }
+
+export interface AlertDelivery {
+  id: string;
+  created_at: string;
+  alert_event_id: string;
+  channel: "email" | "whatsapp";
+  recipient: string;
+  status: "pending" | "sent" | "failed";
+  delivered_at: string | null;
+  error_message: string | null;
+}
