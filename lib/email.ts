@@ -21,7 +21,10 @@ export async function sendEmailAlert(params: {
   const apiKey = process.env.RESEND_API_KEY;
   // Per-user preference wins over the global fallback recipient.
   const recipient = params.recipientOverride || process.env.ALERT_RECIPIENT_EMAIL;
-  const from = process.env.ALERT_FROM_EMAIL ?? "alerts@resend.dev";
+  // Resend's shared test sender. Works without domain verification, but
+  // in that mode Resend only delivers to the account owner's own email.
+  // Set ALERT_FROM_EMAIL to an address on a verified domain to send freely.
+  const from = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
 
   if (!recipient) {
     return {
