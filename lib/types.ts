@@ -57,3 +57,13 @@ export interface AlertDelivery {
   delivered_at: string | null;
   error_message: string | null;
 }
+
+export interface AuditLog {
+  id: string;
+  created_at: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  payload: Record<string, unknown> | null;
+  actor: string | null;
+}

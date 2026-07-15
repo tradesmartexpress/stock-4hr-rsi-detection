@@ -3,21 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 import type { Stock } from "@/lib/types";
 import { PassBadge } from "./PassBadge";
 import { DeleteStockButton } from "./DeleteStockButton";
+import { compositeScore, MAX_SCORE } from "@/lib/score";
 
 export const dynamic = "force-dynamic";
 
 export default async function StocksPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("stocks")
-    .select("*")
-    .order("ticker", { ascending: true });
+  const { data, error } = await supabase.from("stocks").select("*");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const stocks = (data ?? []) as Stock[];
+  // Ranked watchlist: sort by composite fundamental score (desc), ticker tiebreak.
+  const stocks = ((data ?? []) as Stock[])
+    .map((s) => ({ ...s, score: compositeScore(s) }))
+    .sort((a, b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
 
   return (
     <main className="mx-auto max-w-5xl p-8">
@@ -27,7 +28,7 @@ export default async function StocksPage() {
             Stock Watchlist
           </h1>
           <p className="text-sm text-neutral-500">
-            Fundamentals-first screening for the 4-hr RSI alert engine.
+            Ranked by composite fundamental score for the 4-hr RSI alert engine.
           </p>
         </div>
         <Link
@@ -55,17 +56,20 @@ export default async function StocksPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 text-neutral-600">
               <tr>
+                <th className="px-4 py-2.5 font-medium">Rank</th>
                 <th className="px-4 py-2.5 font-medium">Ticker</th>
                 <th className="px-4 py-2.5 font-medium">Company</th>
                 <th className="px-4 py-2.5 font-medium">Sector</th>
                 <th className="px-4 py-2.5 font-medium">Moat</th>
+                <th className="px-4 py-2.5 font-medium">Score</th>
                 <th className="px-4 py-2.5 font-medium">Fundamentals</th>
                 <th className="px-4 py-2.5 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {stocks.map((stock) => (
+              {stocks.map((stock, i) => (
                 <tr key={stock.id} className="border-t border-neutral-200">
+                  <td className="px-4 py-3 text-neutral-400">{i + 1}</td>
                   <td className="px-4 py-3 font-semibold">
                     <Link href={`/stocks/${stock.ticker}`} className="hover:underline">
                       {stock.ticker}
@@ -77,6 +81,10 @@ export default async function StocksPage() {
                   </td>
                   <td className="px-4 py-3 capitalize text-neutral-500">
                     {stock.moat_rating ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    {stock.score}
+                    <span className="text-neutral-400">/{MAX_SCORE}</span>
                   </td>
                   <td className="px-4 py-3">
                     <PassBadge pass={stock.fundamental_pass} />

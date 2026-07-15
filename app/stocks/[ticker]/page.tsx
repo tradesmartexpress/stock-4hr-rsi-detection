@@ -4,6 +4,7 @@ import { getStockByTicker } from "../queries";
 import { PassBadge } from "../PassBadge";
 import { DeleteStockButton } from "../DeleteStockButton";
 import { RsiForm } from "./RsiForm";
+import { MoatPanel } from "./MoatPanel";
 import { createClient } from "@/lib/supabase/server";
 import type { RsiReading } from "@/lib/types";
 
@@ -159,6 +160,10 @@ export default async function StockDetailPage({
           <p className="text-sm text-neutral-600">{stock.notes}</p>
         </div>
       )}
+
+      <div className="mt-8">
+        <MoatPanel stock={stock} />
+      </div>
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold tracking-tight">

@@ -40,6 +40,12 @@ export default async function RootLayout({
                   Alerts
                 </Link>
                 <Link
+                  href="/audit"
+                  className="text-neutral-600 hover:text-neutral-900"
+                >
+                  Audit
+                </Link>
+                <Link
                   href="/settings"
                   className="text-neutral-600 hover:text-neutral-900"
                 >
