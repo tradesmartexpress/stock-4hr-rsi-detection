@@ -1,0 +1,54 @@
+name: 4h RSI scan
+
+# Drives the 4-hour cadence for the RSI-below-20 scanner.
+# The scan itself lives in the app at /api/cron/fetch-rsi — this workflow
+# just pokes that endpoint on a schedule (the Vercel Hobby plan can only run
+# crons once a day, so we trigger it from here instead).
+#
+# The endpoint is idempotent per 4h candle (it skips a candle it has already
+# recorded), so polling more often than every 4h is harmless — it just means
+# a freshly-closed candle is detected promptly.
+
+on:
+  schedule:
+    # Every hour on the hour, 13:00-22:00 UTC, Mon-Fri.
+    # That window spans the US cash session (09:30-16:00 ET) across both
+    # EDT (UTC-4) and EST (UTC-5), plus the candle that closes at/after
+    # the bell. GitHub runs schedules in UTC and may delay them a few
+    # minutes under load, which is fine for a 4h-candle alert.
+    - cron: "0 13-22 * * 1-5"
+  # Manual "Run workflow" button for testing / one-off scans.
+  workflow_dispatch: {}
+
+# Never let two scans overlap.
+concurrency:
+  group: rsi-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger RSI scan
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # Override in repo Settings > Variables if the deployment URL changes.
+          ENDPOINT: ${{ vars.SCAN_ENDPOINT || 'https://stock-4hr-rsi-detection.vercel.app/api/cron/fetch-rsi' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set."
+            exit 1
+          fi
+          echo "Hitting $ENDPOINT"
+          code=$(curl -sS --max-time 90 -w '%{http_code}' -o /tmp/resp.json \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$ENDPOINT")
+          echo "HTTP $code"
+          echo "--- response (truncated) ---"
+          head -c 4000 /tmp/resp.json || true
+          echo ""
+          if [ "$code" != "200" ]; then
+            echo "::error::Scan endpoint returned HTTP $code"
+            exit 1
+          fi
