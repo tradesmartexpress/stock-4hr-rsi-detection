@@ -4,10 +4,12 @@ import type { Stock } from "./types";
 // 8 rule criteria (1 point each) + moat bonus (wide=2, narrow=1, none/null=0).
 // Max = 10. Pass threshold = 8 (matches the DB's generated fundamental_pass,
 // which requires all 8 rule criteria; moat is the tie-breaker for ranking).
+// The consecutive-revenue-growth criterion is >= 4 (see migration 0003 — the
+// FMP plan's 5-year history cap makes 5 unreachable via auto-fetch).
 export function compositeScore(stock: Stock): number {
   let score = 0;
   if ((stock.revenue_cagr_5yr ?? 0) > 8) score += 1;
-  if ((stock.revenue_growth_consecutive_years ?? 0) >= 5) score += 1;
+  if ((stock.revenue_growth_consecutive_years ?? 0) >= 4) score += 1;
   if ((stock.eps_cagr_5yr ?? 0) > 10) score += 1;
   if ((stock.fcf_positive_years ?? 0) >= 5) score += 1;
   if ((stock.net_profit_margin_avg ?? 0) > 5) score += 1;

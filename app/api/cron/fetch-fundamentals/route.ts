@@ -30,9 +30,17 @@ export async function GET(request: NextRequest) {
     try {
       const f = await fetchFundamentals(stock.ticker);
 
-      // Only overwrite fields FMP actually returned; preserve manual 5yr
-      // CAGR entries (not derivable from a single TTM call).
+      // Only overwrite fields FMP actually returned; a null means FMP
+      // couldn't supply it this run, so we preserve any existing value.
       const update: Record<string, number> = {};
+      if (f.revenue_cagr_5yr != null)
+        update.revenue_cagr_5yr = f.revenue_cagr_5yr;
+      if (f.eps_cagr_5yr != null) update.eps_cagr_5yr = f.eps_cagr_5yr;
+      if (f.revenue_growth_consecutive_years != null)
+        update.revenue_growth_consecutive_years =
+          f.revenue_growth_consecutive_years;
+      if (f.fcf_positive_years != null)
+        update.fcf_positive_years = f.fcf_positive_years;
       if (f.net_profit_margin_avg != null)
         update.net_profit_margin_avg = f.net_profit_margin_avg;
       if (f.roe_avg != null) update.roe_avg = f.roe_avg;
