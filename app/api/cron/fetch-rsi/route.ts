@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchFourHourCandles } from "@/lib/fmp";
+import { fetchFourHourCandles } from "@/lib/twelvedata";
 import { computeRsi } from "@/lib/rsi";
 import { processRsiReading } from "@/lib/alert-engine";
 import type { Stock } from "@/lib/types";
