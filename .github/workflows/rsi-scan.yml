@@ -11,12 +11,18 @@ name: 4h RSI scan
 
 on:
   schedule:
-    # Every hour on the hour, 13:00-22:00 UTC, Mon-Fri.
-    # That window spans the US cash session (09:30-16:00 ET) across both
-    # EDT (UTC-4) and EST (UTC-5), plus the candle that closes at/after
-    # the bell. GitHub runs schedules in UTC and may delay them a few
-    # minutes under load, which is fine for a 4h-candle alert.
-    - cron: "0 13-22 * * 1-5"
+    # US 4h candles finalize twice per session: ~13:30 ET (end of the
+    # 09:30 bar) and ~16:00 ET (end of the 13:30 bar). We run a few minutes
+    # after each, covering both EDT (UTC-4) and EST (UTC-5):
+    #   13:30 ET -> 17:30 UTC (EDT) / 18:30 UTC (EST)
+    #   16:00 ET -> 20:00 UTC (EDT) / 21:00 UTC (EST)
+    # The scan is idempotent per candle, so the runs that fall on the "wrong"
+    # DST offset simply find nothing new. GitHub runs schedules in UTC and may
+    # delay them a few minutes under load, which is fine for a 4h candle.
+    - cron: "35 17 * * 1-5"
+    - cron: "35 18 * * 1-5"
+    - cron: "5 20 * * 1-5"
+    - cron: "5 21 * * 1-5"
   # Manual "Run workflow" button for testing / one-off scans.
   workflow_dispatch: {}
 

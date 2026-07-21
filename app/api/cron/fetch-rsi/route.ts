@@ -29,7 +29,14 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from("stocks").select("*");
+  // Only scan stocks that can actually alert: an RSI cross is gated on
+  // fundamental_pass anyway, so fetching candles for non-passers just burns
+  // the Twelve Data quota. This keeps the scan set (and API usage) bounded to
+  // the fundamentally-strong subset regardless of how big the watchlist grows.
+  const { data, error } = await supabase
+    .from("stocks")
+    .select("*")
+    .eq("fundamental_pass", true);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
